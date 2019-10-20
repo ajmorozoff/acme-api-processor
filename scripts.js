@@ -1,67 +1,85 @@
 
+
+//time: O(n)
 const findProductsInPriceRange = (productList, range) => {
+    //O(n)
     return productList.filter(prod => prod.suggestedPrice >= range.min && prod.suggestedPrice <= range.max);
 }
 
+//time: O(n)
 const groupCompaniesByLetter = (companyList) => {
     let obj = {};
+    //O(n)
     companyList.forEach(company => {
         let letter = company.name.slice(0, 1).toUpperCase();
+        //obj will have a maximum length of 26
         if (obj.hasOwnProperty(letter)) {
             obj[letter].push(company);
         }
         else {
-            obj[letter] = [];
-            obj[letter].push(company);
+            obj[letter] = [company];
         }
     })
     return obj;
 }
 
+//time: O(n)
 const groupCompaniesByState = (companyList) => {
     let obj = {};
+    //O(n)
     companyList.forEach(company => {
         let state = company.state;
+        //obj will have a maximum length of 50
         if (obj.hasOwnProperty(state)) {
             obj[state].push(company);
         }
         else {
-            obj[state] = [];
-            obj[state].push(company);
+            obj[state] = [company];
         }
     })
     return obj;
 }
 
+//time: O(n^2)
 const processOfferings = (obj) => {
     let arr = [];
+    //O(n)
     obj.offerings.forEach(offer => {
+        //O(n)
         offer.company = obj.companies.filter(company => company.id === offer.companyId)[0];
+        //O(n)
         offer.product = obj.products.filter(prod => prod.id === offer.productId)[0];
         arr.push(offer);
     })
     return arr;
 }
 
+//time: O(n)
 const companiesByNumberOfOfferings = (companyList, offeringList, n) => {
-    let freqObj = {};
+    let obj = {};
+    //O(n)
     offeringList.forEach(offer => {
         let compId = offer.companyId;
-        if (freqObj.hasOwnProperty(compId)) {
-            freqObj[compId] += 1;
+        if (obj.hasOwnProperty(compId)) {
+            obj[compId] += 1;
         }
         else {
-            freqObj[compId] = 1;
+            obj[compId] = 1;
         }
     })
-    const filteredSums = Object.keys(freqObj).filter(key => freqObj[key] >= n);
+    //O(n)
+    const filteredSums = Object.keys(obj).filter(key => obj[key] >= n);
+    //O(n);
     return companyList.filter(company => filteredSums.includes(company.id));
 }
 
+//time: O(n^2)
 const processProducts = (obj) => {
     let freqObj = {};
+    //O(n)
     obj.offerings.forEach(offer => {
         let prodId = offer.productId;
+        //O(n)
         if (freqObj.hasOwnProperty(prodId)) {
             freqObj[prodId].count += 1;
             freqObj[prodId].priceSum += offer.price;
@@ -70,57 +88,39 @@ const processProducts = (obj) => {
             freqObj[prodId] = {count: 0, priceSum: 0};
         }
     });
+    //O(n)
     return obj.products.map(prod => {
-        let avg = freqObj[prod.id].priceSum / freqObj[prod.id].count;
-        prod.averageOfferingPrice = avg;
+        prod.averageOfferingPrice = freqObj[prod.id].priceSum / freqObj[prod.id].count;
         return prod;
     })
 }
 
 //------------
 
-const grabCompanies = () => new Promise((resolve, reject) => {
+const fetchCompanies = () => new Promise((resolve, reject) => {
     return window.fetch('https://acme-users-api-rev.herokuapp.com/api/companies')
             .then(response => response.json())
             .then(jsonData => resolve(jsonData))
             .catch(e => reject(e));
 });
 
-const grabProducts = () => new Promise((resolve, reject) => {
+const fetchProducts = () => new Promise((resolve, reject) => {
     return window.fetch('https://acme-users-api-rev.herokuapp.com/api/products')
             .then(response => response.json())
             .then(jsonData => resolve(jsonData))
             .catch(e => reject(e));
 });
 
-const grabOfferings = () => new Promise((resolve, reject) => {
+const fetchOfferings = () => new Promise((resolve, reject) => {
     return window.fetch('https://acme-users-api-rev.herokuapp.com/api/offerings')
             .then(response => response.json())
             .then(jsonData => resolve(jsonData))
             .catch(e => reject(e));
 });
 
-//------------
-let responses = [];
-
-grabCompanies()
-    .then(companyData => {
-        responses.push(companyData)
-        return grabProducts();
-    })
-    .then(productData => {
-        responses.push(productData);
-        return grabOfferings();
-    })
-    .then(offeringData => {
-        responses.push(offeringData);
-        return responses;
-    })
-    .then(completedData => {
-        const [companies, products, offerings] = completedData;
-        console.log('offerings ', offerings);
-        console.log('products ', products);
-        console.log('companies ', companies);
+Promise.all([fetchCompanies(), fetchProducts(), fetchOfferings()])
+    .then(responses => {
+        const [companies, products, offerings] = responses;
         const priceRange = findProductsInPriceRange(products, {min: 1, max: 15});
         console.log('findProductsInPriceRange min:3 max:5 ', priceRange);
         const groupedByLetter = groupCompaniesByLetter(companies);
@@ -134,4 +134,5 @@ grabCompanies()
         const processedProducts = processProducts({products, offerings});
         console.log('processedProducts ', processedProducts);
     })
+    .catch(error => console.log(error))
 
