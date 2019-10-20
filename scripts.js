@@ -1,6 +1,3 @@
-let companies = undefined;
-let products = undefined;
-let offerings = undefined;
 
 const findProductsInPriceRange = (productList, range) => {
     return productList.filter(prod => prod.suggestedPrice >= range.min && prod.suggestedPrice <= range.max);
@@ -46,12 +43,38 @@ const processOfferings = (obj) => {
     return arr;
 }
 
-const companiesByNumberOfOfferings = (companies, offerings, n) => {
-
+const companiesByNumberOfOfferings = (companyList, offeringList, n) => {
+    let freqObj = {};
+    offeringList.forEach(offer => {
+        let compId = offer.companyId;
+        if (freqObj.hasOwnProperty(compId)) {
+            freqObj[compId] += 1;
+        }
+        else {
+            freqObj[compId] = 1;
+        }
+    })
+    const filteredSums = Object.keys(freqObj).filter(key => freqObj[key] >= n);
+    return companyList.filter(company => filteredSums.includes(company.id));
 }
 
 const processProducts = (obj) => {
-
+    let freqObj = {};
+    obj.offerings.forEach(offer => {
+        let prodId = offer.productId;
+        if (freqObj.hasOwnProperty(prodId)) {
+            freqObj[prodId].count += 1;
+            freqObj[prodId].priceSum += offer.price;
+        }
+        else {
+            freqObj[prodId] = {count: 0, priceSum: 0};
+        }
+    });
+    return obj.products.map(prod => {
+        let avg = freqObj[prod.id].priceSum / freqObj[prod.id].count;
+        prod.averageOfferingPrice = avg;
+        return prod;
+    })
 }
 
 //------------
@@ -78,25 +101,27 @@ const grabOfferings = () => new Promise((resolve, reject) => {
 });
 
 //------------
+let responses = [];
+
 grabCompanies()
     .then(companyData => {
-        companies = companyData;
+        responses.push(companyData)
         return grabProducts();
     })
     .then(productData => {
-        products = productData;
+        responses.push(productData);
         return grabOfferings();
     })
     .then(offeringData => {
-        offerings = offeringData;
+        responses.push(offeringData);
+        return responses;
+    })
+    .then(completedData => {
+        const [companies, products, offerings] = completedData;
         console.log('offerings ', offerings);
         console.log('products ', products);
         console.log('companies ', companies);
-        const responses = [companies, products, offerings];
-        return responses
-    })
-    .then(completedData => {
-        const priceRange = findProductsInPriceRange(products, {min: 3, max: 5});
+        const priceRange = findProductsInPriceRange(products, {min: 1, max: 15});
         console.log('findProductsInPriceRange min:3 max:5 ', priceRange);
         const groupedByLetter = groupCompaniesByLetter(companies);
         console.log('groupCompaniesByLetter ', groupedByLetter);
@@ -104,5 +129,9 @@ grabCompanies()
         console.log('groupCompaniesByState ', groupedByState);
         const processedOfferings = processOfferings({companies, products, offerings});
         console.log('processOfferings ', processedOfferings);
+        const companyOfferings = companiesByNumberOfOfferings(companies, offerings, 3);
+        console.log(' companiesByNumberOfOfferings ', companyOfferings);
+        const processedProducts = processProducts({products, offerings});
+        console.log('processedProducts ', processedProducts);
     })
 
